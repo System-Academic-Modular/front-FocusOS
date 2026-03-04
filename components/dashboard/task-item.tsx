@@ -15,7 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { MoreHorizontal, Pencil, Trash2, Clock, Calendar } from 'lucide-react'
+import { MoreHorizontal, Pencil, Trash2, Clock, Calendar, Brain } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import confetti from 'canvas-confetti'
@@ -139,6 +139,14 @@ export function TaskItem({ task, onEdit, showCompleted }: TaskItemProps) {
                 <div className="flex flex-wrap items-center gap-3 mt-4">
                   <Badge variant="outline" className={cn("text-[10px] font-bold uppercase tracking-wider h-5", priorityColors[task.priority])}>
                     {priorityLabels[task.priority]}
+                  </Badge>
+
+                  <Badge
+                    variant="outline"
+                    className="h-5 border-sky-500/20 bg-sky-500/10 text-[10px] font-semibold text-sky-300"
+                  >
+                    <Brain className="mr-1 h-3 w-3" />
+                    Carga {task.cognitive_load}
                   </Badge>
 
                   {task.category && (

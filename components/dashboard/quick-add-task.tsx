@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useTransition } from 'react'
-import type { Category, TaskPriority, TeamMember } from '@/lib/types'
+import type { Category, CognitiveLoad, TaskPriority, TeamMember } from '@/lib/types'
 import { createTask } from '@/lib/actions/tasks'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -19,7 +19,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
-import { Plus, CalendarIcon, Flag, Loader2, UserRound } from 'lucide-react'
+import { Plus, CalendarIcon, Flag, Loader2, UserRound, Brain } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -37,6 +37,7 @@ export function QuickAddTask({ categories, parentId, selectedTeamId, teamMembers
   const [priority, setPriority] = useState<TaskPriority>('medium')
   const [categoryId, setCategoryId] = useState<string>('none')
   const [assigneeId, setAssigneeId] = useState<string>('none')
+  const [cognitiveLoad, setCognitiveLoad] = useState<CognitiveLoad>(3)
   const [dueDate, setDueDate] = useState<Date | undefined>()
   const [showOptions, setShowOptions] = useState(false)
   const [isPending, startTransition] = useTransition()
@@ -55,6 +56,7 @@ export function QuickAddTask({ categories, parentId, selectedTeamId, teamMembers
         parent_id: parentId,
         team_id: selectedTeamId || undefined,
         assignee_id: assigneeId === 'none' ? undefined : assigneeId,
+        cognitive_load: cognitiveLoad,
       })
 
       if (result.error) {
@@ -69,6 +71,7 @@ export function QuickAddTask({ categories, parentId, selectedTeamId, teamMembers
       setPriority('medium')
       setCategoryId('none')
       setAssigneeId('none')
+      setCognitiveLoad(3)
       setDueDate(undefined)
       setShowOptions(false)
     })
@@ -167,6 +170,23 @@ export function QuickAddTask({ categories, parentId, selectedTeamId, teamMembers
                   />
                 </PopoverContent>
               </Popover>
+
+              <Select
+                value={String(cognitiveLoad)}
+                onValueChange={(value) => setCognitiveLoad(Number(value) as CognitiveLoad)}
+              >
+                <SelectTrigger className="w-[150px] h-8">
+                  <Brain className="w-3 h-3 mr-1" />
+                  <SelectValue placeholder="Carga mental" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">Carga 1 - Leve</SelectItem>
+                  <SelectItem value="2">Carga 2</SelectItem>
+                  <SelectItem value="3">Carga 3 - Moderada</SelectItem>
+                  <SelectItem value="4">Carga 4</SelectItem>
+                  <SelectItem value="5">Carga 5 - Intensa</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           )}
         </form>

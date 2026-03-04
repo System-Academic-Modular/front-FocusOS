@@ -1,7 +1,14 @@
 'use client'
 
 import React, { useState, useEffect, useTransition } from 'react'
-import type { Tarefa, Categoria, PrioridadeTarefa, StatusTarefa, MembroTime } from '@/lib/types'
+import type {
+  Tarefa,
+  Categoria,
+  PrioridadeTarefa,
+  StatusTarefa,
+  MembroTime,
+  CognitiveLoad,
+} from '@/lib/types'
 import { updateTask, createTask } from '@/lib/actions/tasks'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -11,7 +18,7 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
-import { CalendarIcon, Loader2, Flag, Circle, Clock } from 'lucide-react'
+import { CalendarIcon, Loader2, Flag, Circle, Clock, Brain } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -44,6 +51,7 @@ export function TaskEditDialog({
   const [assigneeId, setAssigneeId] = useState<string>('none')
   const [dueDate, setDueDate] = useState<Date | undefined>()
   const [estimatedMinutes, setEstimatedMinutes] = useState<string>('')
+  const [cognitiveLoad, setCognitiveLoad] = useState<CognitiveLoad>(3)
   const [parentId, setParentId] = useState<string | null>(defaultParentId)
 
   const [isPending, startTransition] = useTransition()
@@ -59,6 +67,7 @@ export function TaskEditDialog({
         setAssigneeId(task.assignee_id || 'none')
         setDueDate(task.due_date ? new Date(task.due_date) : undefined)
         setEstimatedMinutes(task.estimated_minutes?.toString() || '')
+        setCognitiveLoad((task.cognitive_load || 3) as CognitiveLoad)
         setParentId(task.parent_id || null)
       } else {
         setTitle('')
@@ -69,6 +78,7 @@ export function TaskEditDialog({
         setAssigneeId('none')
         setDueDate(undefined)
         setEstimatedMinutes('')
+        setCognitiveLoad(3)
         setParentId(defaultParentId)
       }
     }
@@ -94,6 +104,7 @@ export function TaskEditDialog({
         assignee_id: assigneeId === 'none' ? null : assigneeId,
         due_date: dueDate?.toISOString() || null,
         estimated_minutes: estimatedMinutes ? parseInt(estimatedMinutes) : null,
+        cognitive_load: cognitiveLoad,
       }
 
       try {
@@ -221,7 +232,7 @@ export function TaskEditDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 bg-white/[0.02] p-4 rounded-xl border border-white/5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white/[0.02] p-4 rounded-xl border border-white/5">
             <div className="space-y-2">
               <Label className="text-xs uppercase tracking-wider text-muted-foreground">Data de Entrega</Label>
               <Popover>
@@ -260,6 +271,29 @@ export function TaskEditDialog({
                   className="bg-black/40 border-white/10 pl-9 text-white"
                 />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Carga Cognitiva</Label>
+              <Select
+                value={String(cognitiveLoad)}
+                onValueChange={(value) => setCognitiveLoad(Number(value) as CognitiveLoad)}
+              >
+                <SelectTrigger className="bg-black/40 border-white/10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-[#18181b] border-white/10 text-white">
+                  <SelectItem value="1">
+                    <div className="flex items-center">
+                      <Brain className="w-3 h-3 mr-2 text-sky-300" /> 1 - Leve
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="2">2 - Baixa</SelectItem>
+                  <SelectItem value="3">3 - Moderada</SelectItem>
+                  <SelectItem value="4">4 - Alta</SelectItem>
+                  <SelectItem value="5">5 - Intensa</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 

@@ -3,11 +3,13 @@
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
 import { setTaskContext } from '@/lib/actions/task-context-action'
+import { normalizeCognitiveLoad } from '@/lib/effort'
 import {
   parseTaskContext,
   type TaskContext,
   type TaskContextValue,
 } from '@/lib/task-context-shared'
+import type { CognitiveLoad } from '@/lib/types'
 
 type TeamOption = {
   id: string
@@ -19,8 +21,10 @@ type TeamOption = {
 type TaskContextState = TaskContext & {
   value: TaskContextValue
   teams: TeamOption[]
+  preferredCognitiveLoad: CognitiveLoad
   isPending: boolean
   setValue: (value: TaskContextValue) => void
+  setPreferredCognitiveLoad: (value: CognitiveLoad) => void
 }
 
 const TaskContext = React.createContext<TaskContextState | undefined>(undefined)
@@ -36,7 +40,15 @@ export function TaskContextProvider({
 }) {
   const router = useRouter()
   const [value, setValueState] = React.useState<TaskContextValue>(initialValue)
+  const [preferredCognitiveLoad, setPreferredCognitiveLoadState] =
+    React.useState<CognitiveLoad>(3)
   const [isPending, startTransition] = React.useTransition()
+
+  React.useEffect(() => {
+    const storedValue = localStorage.getItem('taskflow-cognitive-load')
+    if (!storedValue) return
+    setPreferredCognitiveLoadState(normalizeCognitiveLoad(Number(storedValue)))
+  }, [])
 
   // Validação: Se tentar acessar um time que não existe na lista, volta para pessoal
   const validValue = React.useMemo<TaskContextValue>(() => {
@@ -67,6 +79,12 @@ export function TaskContextProvider({
     [value, router],
   )
 
+  const setPreferredCognitiveLoad = React.useCallback((nextValue: CognitiveLoad) => {
+    const normalizedValue = normalizeCognitiveLoad(nextValue)
+    setPreferredCognitiveLoadState(normalizedValue)
+    localStorage.setItem('taskflow-cognitive-load', String(normalizedValue))
+  }, [])
+
   // Parseia 'team:123' para { type: 'team', teamId: '123' }
   const context = React.useMemo(() => parseTaskContext(validValue), [validValue])
 
@@ -75,10 +93,20 @@ export function TaskContextProvider({
       value: validValue,
       ...context, // CORREÇÃO AQUI: Espalhamos o context para expor type e teamId na raiz
       teams,
+      preferredCognitiveLoad,
       isPending,
       setValue,
+      setPreferredCognitiveLoad,
     }),
-    [validValue, context, teams, isPending, setValue],
+    [
+      validValue,
+      context,
+      teams,
+      preferredCognitiveLoad,
+      isPending,
+      setValue,
+      setPreferredCognitiveLoad,
+    ],
   )
 
   return <TaskContext.Provider value={state}>{children}</TaskContext.Provider>

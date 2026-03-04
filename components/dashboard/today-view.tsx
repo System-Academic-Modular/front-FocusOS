@@ -7,6 +7,7 @@ import { QuickAddTask } from './quick-add-task'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Sun, Target, CheckCircle2, Clock } from 'lucide-react'
+import { getEffortProgress } from '@/lib/effort'
 
 interface TodayViewProps {
   tasks: Task[]
@@ -16,7 +17,8 @@ interface TodayViewProps {
 }
 
 export function TodayView({ tasks, categories, completedToday, dailyGoal }: TodayViewProps) {
-  const progress = Math.min((completedToday / dailyGoal) * 100, 100)
+  const effort = getEffortProgress(tasks)
+  const progress = effort.totalEffort > 0 ? effort.percentage : Math.min((completedToday / dailyGoal) * 100, 100)
   const pendingTasks = tasks.filter(t => t.status !== 'done')
   const completedTasks = tasks.filter(t => t.status === 'done')
 
@@ -53,8 +55,9 @@ export function TodayView({ tasks, categories, completedToday, dailyGoal }: Toda
             <div className="flex items-center gap-4">
               <div className="flex-1">
                 <div className="text-2xl font-bold text-foreground">
-                  {completedToday}/{dailyGoal}
+                  {effort.completedEffort}/{effort.totalEffort || dailyGoal}
                 </div>
+                <p className="text-xs text-muted-foreground">pontos de esforço mental concluídos</p>
                 <Progress value={progress} className="mt-2 h-2" />
               </div>
             </div>

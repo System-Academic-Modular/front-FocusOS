@@ -54,7 +54,6 @@ export async function updateCategory(categoryId: string, input: UpdateCategoryIn
     .from('categories')
     .update({
       ...input,
-      updated_at: new Date().toISOString(),
     })
     .eq('id', categoryId)
     .eq('user_id', user.id)

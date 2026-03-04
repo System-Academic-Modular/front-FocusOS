@@ -1,14 +1,25 @@
 'use client'
 
-import React, { useMemo, useState, useTransition } from 'react'
-import type { Tarefa, Categoria, StatusTarefa, MembroTime } from '@/lib/types'
-import { updateTask, deleteTask } from '@/lib/actions/tasks'
-import { TaskEditDialog } from './task-edit-dialog'
-import { QuickAddTask } from './quick-add-task'
+import { useMemo, useState, useTransition } from 'react'
+import confetti from 'canvas-confetti'
+import {
+  Brain,
+  Calendar,
+  GripVertical,
+  Kanban,
+  MoreHorizontal,
+  Pencil,
+  Target,
+  Trash2,
+} from 'lucide-react'
+import { toast } from 'sonner'
+import { deleteTask, updateTask } from '@/lib/actions/tasks'
+import { QuickAddTask } from '@/components/dashboard/quick-add-task'
+import { TaskEditDialog } from '@/components/dashboard/task-edit-dialog'
+import { ZenMode } from '@/components/dashboard/zen-mode'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Kanban, Calendar, MoreHorizontal, Pencil, Trash2, GripVertical, Target } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,235 +27,315 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import confetti from 'canvas-confetti'
-import { ZenMode } from '@/components/dashboard/zen-mode' 
+import type { Category, Task, TaskStatus, TeamMember } from '@/lib/types'
 
 interface KanbanViewProps {
-  tasks: Tarefa[]
-  categories: Categoria[]
+  tasks: Task[]
+  categories: Category[]
   selectedTeamId?: string | null
-  teamMembers?: MembroTime[]
+  teamMembers?: TeamMember[]
 }
 
-// Colunas atualizadas para os Status em Português
-const columns: { id: StatusTarefa; title: string; color: string; border: string }[] = [
-  { id: 'TODO', title: 'A Fazer', color: 'bg-slate-500/10', border: 'border-slate-500/20' },
-  { id: 'EM_ANDAMENTO', title: 'Em Foco', color: 'bg-brand-violet/10', border: 'border-brand-violet/20' },
-  { id: 'CONCLUIDO', title: 'Concluído', color: 'bg-brand-emerald/10', border: 'border-brand-emerald/20' },
+const columns: { id: TaskStatus; title: string; className: string }[] = [
+  { id: 'todo', title: 'A Fazer', className: 'border-slate-500/20 bg-slate-500/10' },
+  {
+    id: 'in_progress',
+    title: 'Em Foco',
+    className: 'border-brand-violet/25 bg-brand-violet/10',
+  },
+  { id: 'done', title: 'Concluídas', className: 'border-emerald-500/25 bg-emerald-500/10' },
 ]
 
-export function KanbanView({ tasks, categories, selectedTeamId, teamMembers = [] }: KanbanViewProps) {
-  const [editingTask, setEditingTask] = useState<Tarefa | null>(null)
-  const [zenTask, setZenTask] = useState<Tarefa | null>(null) 
-  const [isPending, startTransition] = useTransition()
-  const [draggedTask, setDraggedTask] = useState<Tarefa | null>(null)
+const priorityOrder: Record<Task['priority'], number> = {
+  urgent: 0,
+  high: 1,
+  medium: 2,
+  low: 3,
+}
 
-  const teamMembersById = useMemo(
-    () => Object.fromEntries(teamMembers.map((member) => [member.KEY_LOGIN, member])),
-    [teamMembers]
+function priorityDot(priority: Task['priority']) {
+  if (priority === 'urgent') return 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.7)]'
+  if (priority === 'high') return 'bg-orange-400'
+  if (priority === 'medium') return 'bg-amber-300'
+  return 'bg-slate-400'
+}
+
+export function KanbanView({
+  tasks,
+  categories,
+  selectedTeamId,
+  teamMembers = [],
+}: KanbanViewProps) {
+  const [editingTask, setEditingTask] = useState<Task | null>(null)
+  const [zenTask, setZenTask] = useState<Task | null>(null)
+  const [draggedTask, setDraggedTask] = useState<Task | null>(null)
+  const [isPending, startTransition] = useTransition()
+
+  const memberByUserId = useMemo(
+    () => new Map(teamMembers.map((member) => [member.user_id, member])),
+    [teamMembers],
   )
 
-  function handleDragStart(e: React.DragEvent, task: Tarefa) {
-    setDraggedTask(task)
-    e.dataTransfer.effectAllowed = 'move'
-  }
+  const tasksByColumn = useMemo(() => {
+    const groups = {
+      todo: [] as Task[],
+      in_progress: [] as Task[],
+      done: [] as Task[],
+    }
 
-  function handleDragOver(e: React.DragEvent) {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
-  }
+    for (const task of tasks) {
+      groups[task.status].push(task)
+    }
 
-  function handleDrop(e: React.DragEvent, newStatus: StatusTarefa) {
-    e.preventDefault()
-    if (!draggedTask || draggedTask.STATUS === newStatus) {
+    for (const columnKey of Object.keys(groups) as TaskStatus[]) {
+      groups[columnKey].sort((a, b) => {
+        const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority]
+        if (priorityDiff !== 0) return priorityDiff
+        return (a.position ?? 0) - (b.position ?? 0)
+      })
+    }
+
+    return groups
+  }, [tasks])
+
+  function handleDrop(newStatus: TaskStatus) {
+    if (!draggedTask || draggedTask.status === newStatus) {
       setDraggedTask(null)
       return
     }
 
     startTransition(async () => {
-      // O backend precisará ser ajustado para receber KEY_TAREFA e STATUS
-      const result = await updateTask(draggedTask.KEY_TAREFA, { STATUS: newStatus })
+      const result = await updateTask(draggedTask.id, { status: newStatus })
       if (result.error) {
-        toast.error('Erro ao mover tarefa')
-        return
-      }
-
-      if (newStatus === 'CONCLUIDO') {
-        confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 }, colors: ['#0ea5e9', '#10b981', '#f59e0b'] })
-        toast.success('Tarefa concluída!')
+        toast.error('Erro ao mover tarefa', { description: result.error })
+      } else if (newStatus === 'done') {
+        confetti({
+          particleCount: 55,
+          spread: 60,
+          origin: { y: 0.8 },
+          colors: ['#10b981', '#38bdf8', '#4f46e5'],
+        })
+        toast.success('Tarefa concluída! Revisões foram programadas automaticamente.')
       } else {
-        toast.success('Tarefa movida!')
+        toast.success('Tarefa movida.')
       }
       setDraggedTask(null)
     })
   }
 
-  function handleDeleteTask(taskId: string) {
+  function onDeleteTask(taskId: string) {
     startTransition(async () => {
       const result = await deleteTask(taskId)
       if (result.error) {
-        toast.error('Erro ao excluir tarefa')
+        toast.error('Erro ao excluir tarefa', { description: result.error })
         return
       }
-      toast.success('Tarefa excluída')
+      toast.success('Tarefa excluída.')
     })
   }
 
   return (
-    <div className="space-y-6 h-full flex flex-col min-h-0">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between shrink-0">
+    <div className="flex h-full min-h-0 flex-col space-y-6">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <Kanban className="w-6 h-6 text-brand-violet" /> Fluxo Kanban
+          <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground">
+            <Kanban className="h-6 w-6 text-brand-violet" />
+            Fluxo Kanban
           </h1>
-          <p className="text-muted-foreground">{selectedTeamId ? 'Contexto de equipe ativo.' : 'Arraste para gerenciar o fluxo de trabalho.'}</p>
+          <p className="text-muted-foreground">
+            {selectedTeamId
+              ? 'Contexto de equipe ativo para distribuição de trabalho.'
+              : 'Arraste os cards para manter seu fluxo visual em dia.'}
+          </p>
         </div>
       </div>
 
-      <div className="shrink-0">
-        <QuickAddTask categories={categories as any} selectedTeamId={selectedTeamId} teamMembers={teamMembers as any} />
-      </div>
+      <QuickAddTask
+        categories={categories}
+        selectedTeamId={selectedTeamId}
+        teamMembers={teamMembers}
+      />
 
-      <div className="flex flex-row gap-4 md:gap-6 flex-1 overflow-x-auto pb-4 snap-x snap-mandatory md:snap-none w-full scrollbar-thin scrollbar-thumb-white/10">
-        {columns.map((column) => {
-          const columnTasks = tasks.filter((t) => t.STATUS === column.id)
+      <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-white/10">
+        {columns.map((column) => (
+          <div
+            key={column.id}
+            className={cn(
+              'flex min-h-[520px] w-[86vw] shrink-0 snap-center flex-col rounded-2xl border p-4 backdrop-blur-sm md:w-auto md:flex-1',
+              column.className,
+            )}
+            onDragOver={(event) => {
+              event.preventDefault()
+              event.dataTransfer.dropEffect = 'move'
+            }}
+            onDrop={(event) => {
+              event.preventDefault()
+              handleDrop(column.id)
+            }}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="font-semibold text-white">{column.title}</h3>
+              <Badge variant="outline" className="border-white/10 bg-black/20">
+                {tasksByColumn[column.id].length}
+              </Badge>
+            </div>
 
-          return (
-            <div
-              key={column.id}
-              className={cn(
-                'rounded-xl p-4 min-h-[500px] h-full flex flex-col backdrop-blur-sm border transition-colors',
-                'w-[85vw] sm:w-[350px] md:w-auto md:flex-1 shrink-0 snap-center md:snap-align-none',
-                column.color, column.border
-              )}
-              onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(e, column.id)}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-foreground tracking-wide flex items-center gap-2">
-                  <div className={cn('w-2 h-2 rounded-full', column.id === 'TODO' ? 'bg-slate-400' : column.id === 'EM_ANDAMENTO' ? 'bg-brand-violet shadow-[0_0_8px_var(--brand-violet)]' : 'bg-brand-emerald shadow-[0_0_8px_var(--brand-emerald)]')} />
-                  {column.title}
-                </h3>
-                <Badge variant="outline" className="rounded-full border-white/10 bg-black/20 text-xs">
-                  {columnTasks.length}
-                </Badge>
-              </div>
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-white/10">
+              {tasksByColumn[column.id].map((task) => {
+                const assignee = task.assignee_id ? memberByUserId.get(task.assignee_id) : null
+                const assigneeName =
+                  assignee?.profile?.full_name || task.assignee?.full_name || 'Sem responsável'
+                const initials = assigneeName
+                  .split(' ')
+                  .map((chunk) => chunk.charAt(0))
+                  .join('')
+                  .slice(0, 2)
+                  .toUpperCase()
 
-              <div className="space-y-3 flex-1 overflow-y-auto min-h-0 pr-1 scrollbar-thin scrollbar-thumb-white/10 pb-4">
-                {columnTasks.map((task) => {
-                  const assignee = task.KEY_RESPONSAVEL ? teamMembersById[task.KEY_RESPONSAVEL] : null
-                  const assigneeInitials = (assignee?.PERFIL?.NOME || 'SM').substring(0, 2).toUpperCase()
+                const isOverdue =
+                  !!task.due_date && new Date(task.due_date).getTime() < Date.now() && task.status !== 'done'
 
-                  return (
-                    <div
-                      key={task.KEY_TAREFA}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, task)}
-                      className={cn(
-                        'group relative rounded-xl border p-4 shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg cursor-grab active:cursor-grabbing',
-                        'bg-card/80 border-white/5 backdrop-blur-md',
-                        task.PRIORIDADE === 'URGENTE' ? 'border-l-4 border-l-brand-rose hover:shadow-neon-rose/20' : 
-                        task.PRIORIDADE === 'ALTA' ? 'border-l-4 border-l-orange-500 hover:shadow-orange-500/20' : 'hover:border-brand-violet/50 hover:shadow-neon-violet/20',
-                        isPending && draggedTask?.KEY_TAREFA === task.KEY_TAREFA && 'opacity-40 rotate-2 scale-95'
+                return (
+                  <article
+                    key={task.id}
+                    draggable
+                    onDragStart={(event) => {
+                      setDraggedTask(task)
+                      event.dataTransfer.effectAllowed = 'move'
+                    }}
+                    className={cn(
+                      'group rounded-xl border border-white/10 bg-[#101521]/80 p-4 shadow-lg transition-all hover:-translate-y-0.5 hover:border-white/20',
+                      isPending && draggedTask?.id === task.id && 'scale-[0.98] opacity-50',
+                    )}
+                  >
+                    <div className="mb-2 flex items-start justify-between gap-2">
+                      {task.category ? (
+                        <span
+                          className="text-[10px] font-semibold uppercase tracking-widest"
+                          style={{ color: task.category.color }}
+                        >
+                          {task.category.name}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-muted-foreground">Sem categoria</span>
                       )}
-                    >
-                      <div className="flex items-start justify-between gap-2 mb-2 relative">
-                        {task.CATEGORIA ? (
-                          <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: task.CATEGORIA.COR }}>
-                            {task.CATEGORIA.NOME}
-                          </span>
-                        ) : <span className="text-[10px]">&nbsp;</span>}
 
-                        <div className="absolute -top-1 -right-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex items-center bg-[#18181b]/90 backdrop-blur-md rounded-md border border-white/10 shadow-lg overflow-hidden">
-                          {task.STATUS !== 'CONCLUIDO' && (
-                            <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-7 w-7 rounded-none border-r border-white/5 text-brand-cyan hover:bg-brand-cyan/20 hover:text-brand-cyan" 
-                                onClick={(e) => { e.stopPropagation(); setZenTask(task); }}
-                                title="Focar nesta tarefa"
+                      <div className="flex items-center rounded-md border border-white/10 bg-black/40 opacity-100 md:opacity-0 md:group-hover:opacity-100">
+                        {task.status !== 'done' && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 rounded-none border-r border-white/10 text-sky-300 hover:bg-sky-500/10 hover:text-sky-200"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              setZenTask(task)
+                            }}
+                          >
+                            <Target className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 rounded-none text-muted-foreground hover:bg-white/10 hover:text-white"
                             >
-                                <Target className="h-3.5 w-3.5" />
+                              <MoreHorizontal className="h-3.5 w-3.5" />
                             </Button>
-                          )}
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 rounded-none hover:bg-white/10 text-muted-foreground hover:text-white">
-                                <MoreHorizontal className="h-3.5 w-3.5" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="bg-slate-950 border-white/10">
-                              <DropdownMenuItem onClick={() => setEditingTask(task)} className="focus:bg-white/10 cursor-pointer">
-                                <Pencil className="mr-2 h-4 w-4" /> Editar
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator className="bg-white/10" />
-                              <DropdownMenuItem onClick={() => handleDeleteTask(task.KEY_TAREFA)} className="text-destructive focus:bg-destructive/10 cursor-pointer">
-                                <Trash2 className="mr-2 h-4 w-4" /> Excluir
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </div>
-
-                      <h4 className={cn('font-medium text-sm text-foreground leading-snug break-words pr-8', task.STATUS === 'CONCLUIDO' && 'line-through text-muted-foreground')}>
-                        {task.TITULO}
-                      </h4>
-
-                      <div className="flex items-center justify-between mt-4 pt-3 border-t border-white/5">
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                          {task.DATA_VENCIMENTO && (
-                            <span className={cn('flex items-center gap-1', new Date(task.DATA_VENCIMENTO) < new Date() && task.STATUS !== 'CONCLUIDO' ? 'text-brand-rose font-bold animate-pulse' : '')}>
-                              <Calendar className="w-3 h-3" />
-                              {new Date(task.DATA_VENCIMENTO).toLocaleDateString('pt-BR').slice(0, 5)}
-                            </span>
-                          )}
-                          {assignee && (
-                            <Avatar className="h-6 w-6 border border-white/10" title={assignee.PERFIL?.NOME || 'Membro da equipe'}>
-                              <AvatarImage src={assignee.PERFIL?.AVATAR_URL || ''} />
-                              <AvatarFallback className="text-[10px]">{assigneeInitials}</AvatarFallback>
-                            </Avatar>
-                          )}
-                        </div>
-
-                        <div
-                          className={cn('w-2 h-2 rounded-full',
-                            task.PRIORIDADE === 'URGENTE' ? 'bg-brand-rose shadow-[0_0_5px_var(--brand-rose)]' : 
-                            task.PRIORIDADE === 'ALTA' ? 'bg-orange-500' : 
-                            task.PRIORIDADE === 'MEDIA' ? 'bg-yellow-500' : 'bg-slate-600'
-                          )}
-                          title={`Prioridade: ${task.PRIORIDADE}`}
-                        />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="border-white/10 bg-[#141a25]">
+                            <DropdownMenuItem onClick={() => setEditingTask(task)}>
+                              <Pencil className="mr-2 h-4 w-4" />
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => onDeleteTask(task.id)}
+                              className="text-rose-300 focus:bg-rose-500/10 focus:text-rose-200"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
-                  )
-                })}
 
-                {columnTasks.length === 0 && (
-                  <div className="h-32 flex flex-col items-center justify-center border-2 border-dashed border-white/5 rounded-xl text-muted-foreground/50 text-sm">
-                    <GripVertical className="w-6 h-6 mb-2 opacity-50" /> Solte tarefas aqui
-                  </div>
-                )}
-              </div>
+                    <h4
+                      className={cn(
+                        'line-clamp-2 pr-4 text-sm font-semibold text-white',
+                        task.status === 'done' && 'text-muted-foreground line-through',
+                      )}
+                    >
+                      {task.title}
+                    </h4>
+
+                    <div className="mt-3 flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1 rounded-full border border-sky-400/20 bg-sky-500/10 px-2 py-0.5 text-[10px] text-sky-300">
+                        <Brain className="h-3 w-3" />
+                        Carga {task.cognitive_load}
+                      </span>
+                      <span className={cn('h-2 w-2 rounded-full', priorityDot(task.priority))} />
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-between border-t border-white/5 pt-3 text-xs">
+                      <div className="flex items-center gap-3 text-muted-foreground">
+                        {task.due_date && (
+                          <span
+                            className={cn(
+                              'inline-flex items-center gap-1',
+                              isOverdue && 'font-semibold text-rose-300',
+                            )}
+                          >
+                            <Calendar className="h-3 w-3" />
+                            {new Date(task.due_date).toLocaleDateString('pt-BR', {
+                              day: '2-digit',
+                              month: '2-digit',
+                            })}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {task.assignee_id && (
+                          <Avatar className="h-6 w-6 border border-white/10" title={assigneeName}>
+                            <AvatarImage
+                              src={assignee?.profile?.avatar_url || task.assignee?.avatar_url || ''}
+                            />
+                            <AvatarFallback className="bg-brand-violet/20 text-[10px] text-brand-violet">
+                              {initials || 'SM'}
+                            </AvatarFallback>
+                          </Avatar>
+                        )}
+                        <GripVertical className="h-4 w-4 text-muted-foreground/60" />
+                      </div>
+                    </div>
+                  </article>
+                )
+              })}
+
+              {tasksByColumn[column.id].length === 0 && (
+                <div className="flex h-32 flex-col items-center justify-center rounded-xl border-2 border-dashed border-white/10 text-sm text-muted-foreground">
+                  <GripVertical className="mb-2 h-6 w-6 opacity-40" />
+                  Solte tarefas aqui
+                </div>
+              )}
             </div>
-          )
-        })}
+          </div>
+        ))}
       </div>
 
       <TaskEditDialog
-        task={editingTask as any}
-        categories={categories as any}
-        teamMembers={teamMembers as any}
-        open={!!editingTask}
+        task={editingTask}
+        categories={categories}
+        teamMembers={teamMembers}
+        open={Boolean(editingTask)}
         onOpenChange={(open) => !open && setEditingTask(null)}
       />
 
-      <ZenMode 
-        isOpen={!!zenTask} 
-        onClose={() => setZenTask(null)} 
-        taskTitle={zenTask?.TITULO}
-      />
+      <ZenMode isOpen={Boolean(zenTask)} onClose={() => setZenTask(null)} taskTitle={zenTask?.title} />
     </div>
   )
 }

@@ -1,42 +1,48 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { createClient } from '@/lib/supabase/server'
 
-export async function updateProfile(data: {
-  full_name?: string;
-  theme_color?: string;
-  theme_mode?: string;
-  daily_goal?: number;
-  pomodoro_duration?: number;
-  short_break?: number;
-  long_break?: number;
-}) {
+type SupportedProfileFields = {
+  full_name?: string
+  daily_goal?: number
+  pomodoro_duration?: number
+  short_break?: number
+  long_break?: number
+}
+
+export async function updateProfile(data: SupportedProfileFields) {
   const supabase = await createClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
 
   if (authError || !user) {
-    return { error: 'Sessão expirada. Faça login novamente.' }
+    return { error: 'Sessao expirada. Faca login novamente.' }
   }
 
-  // Remove campos undefined para não sobrescrever o banco com nulo
-  const updateData = Object.fromEntries(
-    Object.entries(data).filter(([_, v]) => v !== undefined)
+  const allowedEntries = Object.entries(data).filter(
+    ([key, value]) =>
+      ['full_name', 'daily_goal', 'pomodoro_duration', 'short_break', 'long_break'].includes(key) &&
+      value !== undefined,
   )
+
+  const updateData = Object.fromEntries(allowedEntries)
 
   const { error } = await supabase
     .from('profiles')
     .update({
       ...updateData,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     })
     .eq('id', user.id)
 
   if (error) {
     console.error('Erro ao atualizar perfil:', error)
-    return { error: 'Não foi possível salvar as alterações.' }
+    return { error: 'Nao foi possivel salvar as alteracoes.' }
   }
 
   revalidatePath('/dashboard/settings')
-  return { success: 'Configurações salvas com sucesso!' }
+  return { success: 'Configuracoes salvas com sucesso!' }
 }
