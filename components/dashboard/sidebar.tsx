@@ -1,5 +1,6 @@
 'use client'
 
+import { Logo } from '@/components/ui/logo' // <- Nossa Logo importada aqui!
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
@@ -10,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { useSidebar } from '@/components/dashboard/sidebar-context'
 import {
   LayoutDashboard, CheckSquare, Network, Map, CalendarRange, 
-  Target, Settings, Zap, Columns, Timer, X, Users
+  Target, Settings, Columns, Timer, X, Users
 } from 'lucide-react'
 
 // ATUALIZAÇÃO AQUI: Adicionando 'streak' na interface
@@ -32,7 +33,6 @@ const navigation = [
   { name: 'Performance', href: '/dashboard/reports', icon: Target },
 ]
 
-// ATUALIZAÇÃO AQUI: Recebendo a prop 'streak'
 export function DashboardSidebar({ user, profile, streak = 0 }: DashboardSidebarProps) {
   const pathname = usePathname()
   const { isOpen, close, toggle } = useSidebar()
@@ -79,12 +79,14 @@ export function DashboardSidebar({ user, profile, streak = 0 }: DashboardSidebar
         onMouseLeave={() => !isMobile && setIsHovered(false)}
       >
         <div className="flex h-16 shrink-0 items-center justify-between px-6 border-b border-white/5 bg-black/20">
+          
+          {/* ==================================================== */}
+          {/* NOSSA LOGO APLICADA AQUI NO HEADER DA SIDEBAR! */}
+          {/* ==================================================== */}
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-brand-violet to-purple-600 rounded-lg flex items-center justify-center shadow-lg shadow-brand-violet/20">
-              <Zap className="w-5 h-5 text-white fill-white/20" />
-            </div>
-            <span className="text-xl font-bold tracking-tight text-white bg-clip-text text-transparent bg-gradient-to-r from-white to-white/70">
-              Focus OS
+            <Logo className="w-8 h-8 hover:scale-110 transition-transform cursor-pointer drop-shadow-[0_0_10px_rgba(139,92,246,0.6)]" />
+            <span className="text-xl font-bold tracking-widest uppercase text-white bg-clip-text text-transparent bg-gradient-to-r from-white to-white/50">
+              FocusOS
             </span>
           </div>
           

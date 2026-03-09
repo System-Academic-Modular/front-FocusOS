@@ -1,17 +1,14 @@
 'use client'
 
-import React from "react"
-
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
-import { Loader2, CheckSquare } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -30,74 +27,81 @@ export default function LoginPage() {
     })
 
     if (error) {
-      toast.error('Erro ao fazer login', {
-        description: error.message,
+      toast.error('Acesso Negado', {
+        description: 'Credenciais inválidas ou não encontradas no sistema.',
       })
       setIsLoading(false)
       return
     }
 
-    toast.success('Login realizado com sucesso!')
     router.push('/dashboard')
     router.refresh()
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1 text-center">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-              <CheckSquare className="w-6 h-6 text-primary-foreground" />
-            </div>
-            <span className="text-2xl font-bold text-foreground">TaskFlow</span>
+    <div className="w-full animate-in fade-in zoom-in-95 duration-300">
+      
+      <div className="text-center mb-8">
+        <h2 className="text-xl font-bold text-white uppercase tracking-widest">Autenticação</h2>
+        <p className="text-[11px] text-muted-foreground mt-2 uppercase tracking-widest">Insira suas credenciais de operador</p>
+      </div>
+
+      <form onSubmit={handleLogin} className="space-y-5">
+        <div className="space-y-2">
+          <Label htmlFor="email" className="text-[10px] uppercase tracking-widest text-muted-foreground ml-1">
+            E-mail (Credencial)
+          </Label>
+          <Input
+            id="email"
+            type="email"
+            placeholder="seu@email.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            disabled={isLoading}
+            className="bg-black/40 border-white/10 focus:border-brand-cyan/50 text-white h-12 rounded-xl transition-colors"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between ml-1">
+            <Label htmlFor="password" className="text-[10px] uppercase tracking-widest text-muted-foreground">
+              Código de Segurança
+            </Label>
           </div>
-          <CardTitle className="text-2xl">Bem-vindo de volta</CardTitle>
-          <CardDescription>
-            Entre com sua conta para continuar
-          </CardDescription>
-        </CardHeader>
-        <form onSubmit={handleLogin}>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="seu@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={isLoading}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={isLoading}
-              />
-            </div>
-          </CardContent>
-          <CardFooter className="flex flex-col gap-4">
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Entrar
-            </Button>
-            <p className="text-sm text-muted-foreground text-center">
-              Ainda nao tem uma conta?{' '}
-              <Link href="/auth/sign-up" className="text-primary hover:underline font-medium">
-                Criar conta
-              </Link>
-            </p>
-          </CardFooter>
-        </form>
-      </Card>
+          <Input
+            id="password"
+            type="password"
+            placeholder="••••••••"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            disabled={isLoading}
+            className="bg-black/40 border-white/10 focus:border-brand-cyan/50 text-white h-12 rounded-xl transition-colors"
+          />
+        </div>
+
+        <Button 
+          type="submit" 
+          className="w-full h-12 bg-brand-cyan hover:bg-brand-cyan/80 text-black font-black uppercase tracking-widest mt-6 rounded-xl transition-all hover:shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:-translate-y-0.5" 
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> AUTENTICANDO...</>
+          ) : (
+            'INICIAR SESSÃO'
+          )}
+        </Button>
+
+        <div className="text-center mt-6 pt-6 border-t border-white/5">
+          <p className="text-[11px] text-muted-foreground uppercase tracking-widest font-medium">
+            Não possui autorização?{' '}
+            <Link href="/auth/sign-up" className="text-brand-violet hover:text-white hover:underline transition-colors font-bold ml-1">
+              Adquirir Acesso
+            </Link>
+          </p>
+        </div>
+      </form>
     </div>
   )
 }
