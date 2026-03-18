@@ -4,7 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import type { ColunaKanban, StatusTarefa } from '@/lib/types'
 
-export const DEFAULT_KANBAN_COLUMNS: Array<Pick<ColunaKanban, 'status' | 'titulo' | 'ordem'>> = [
+// 1. REMOVIDO O 'export' AQUI:
+const DEFAULT_KANBAN_COLUMNS: Array<Pick<ColunaKanban, 'status' | 'titulo' | 'ordem'>> = [
   { status: 'pendente', titulo: 'A FAZER', ordem: 0 },
   { status: 'em_progresso', titulo: 'EM FOCO', ordem: 1 },
   { status: 'revisao', titulo: 'REVISAO', ordem: 2 },

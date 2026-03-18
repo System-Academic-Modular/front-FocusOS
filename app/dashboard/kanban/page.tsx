@@ -2,8 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { KanbanView } from '@/components/dashboard/kanban-view'
 import type { Task, Category, TeamMember } from '@/lib/types'
 import { normalizeCategory, normalizeTask } from '@/lib/normalizers'
-import { DEFAULT_KANBAN_COLUMNS } from '@/lib/actions/kanban-columns'
-
+import { DEFAULT_KANBAN_COLUMNS } from '@/lib/constants'
 interface KanbanPageProps {
   searchParams: Promise<{
     team?: string
