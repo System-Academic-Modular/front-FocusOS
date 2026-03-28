@@ -14,19 +14,14 @@ export interface Perfil {
   id: string
   nome_completo: string
   avatar_url?: string
-  email: string
-  
-  // Configurações
+  email?: string
   meta_diaria?: number | null
   duracao_pomodoro?: number | null
   pausa_curta?: number | null
   pausa_longa?: number | null
   tema_padrao?: string | null
-  
-  // Motor de Gamificação
   xp: number
   nivel_atual: number
-  
   criado_em: string
   atualizado_em: string
 }
@@ -77,23 +72,18 @@ export interface Tarefa {
   equipe_id?: string | null
   tarefa_pai_id?: string | null
   atribuido_a?: string | null
-  
   titulo: string
   descricao?: string | null
   status: StatusTarefa
   prioridade: PrioridadeTarefa
   carga_mental: CargaMental
-  
   data_vencimento?: string | null
   minutos_estimados?: number | null
-  
   data_conclusao?: string | null
   proxima_revisao?: string | null
   contagem_revisoes: number
-  
   criado_em: string
   atualizado_em: string
-  
   categoria?: Categoria | null
   atribuido?: Pick<Perfil, 'id' | 'nome_completo' | 'avatar_url'> | null
   subtarefas?: Tarefa[]
@@ -168,3 +158,6 @@ export type TaskPriority = PrioridadeTarefa
 export type PomodoroSession = SessaoPomodoro
 export type PomodoroType = TipoPomodoro
 export type KanbanColumn = ColunaKanban
+export type CognitiveLoad = CargaMental
+export type CheckinEmotional = CheckinEmocional
+export type Integration = Integracao
