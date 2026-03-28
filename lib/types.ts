@@ -23,15 +23,13 @@ export interface Perfil {
   pausa_longa?: number | null
   tema_padrao?: string | null
   
-  // Motor de Gamificação (Essenciais para o SettingsView)
+  // Motor de Gamificação
   xp: number
   nivel_atual: number
   
   criado_em: string
   atualizado_em: string
 }
-
-// Removida a duplicata de Categoria e UsuarioProfile aqui...
 
 export interface Categoria {
   id: string
@@ -40,6 +38,17 @@ export interface Categoria {
   cor: string
   icone?: string | null
   criado_em: string
+}
+
+export interface CreateCategoryInput {
+  nome: string
+  cor: string
+}
+
+export interface UpdateCategoryInput {
+  nome?: string
+  cor?: string
+  icone?: string | null
 }
 
 export interface Equipe {
@@ -57,39 +66,10 @@ export interface MembroEquipe {
   usuario_id: string
   papel: 'dono' | 'admin' | 'membro'
   entrou_em: string
-  
-  // Relacionamentos para UI
   equipe?: Equipe
   perfil?: Perfil | null
 }
-export interface UpdateCategoryInput {
-  nome?: string;
-  cor?: string;
-}
-export interface UsuarioProfile {
-  id: string
-  email: string
-  nome_completo: string
-  avatar_url?: string
-  // adicione outros campos do seu banco aqui
-}
 
-export interface Categoria {
-  id: string
-  nome: string
-  cor: string
-  usuario_id: string
-}
-
-export interface CreateCategoryInput {
-  nome: string
-  cor: string
-}
-
-export interface UpdateCategoryInput {
-  nome?: string
-  cor?: string
-}
 export interface Tarefa {
   id: string
   usuario_id: string
@@ -98,18 +78,15 @@ export interface Tarefa {
   tarefa_pai_id?: string | null
   atribuido_a?: string | null
   
-  // Dados Principais
   titulo: string
   descricao?: string | null
   status: StatusTarefa
   prioridade: PrioridadeTarefa
   carga_mental: CargaMental
   
-  // Prazos e Tempos
   data_vencimento?: string | null
   minutos_estimados?: number | null
   
-  // Algoritmo de Repetição Espaçada
   data_conclusao?: string | null
   proxima_revisao?: string | null
   contagem_revisoes: number
@@ -117,7 +94,6 @@ export interface Tarefa {
   criado_em: string
   atualizado_em: string
   
-  // Relacionamentos para UI (JOINs)
   categoria?: Categoria | null
   atribuido?: Pick<Perfil, 'id' | 'nome_completo' | 'avatar_url'> | null
   subtarefas?: Tarefa[]
@@ -137,7 +113,7 @@ export interface SessaoPomodoro {
   id: string
   usuario_id: string
   tarefa_id: string | null
-  duracao_minutos: number
+  minutos_duracao: number 
   tipo: TipoPomodoro
   concluido_em: string
 }
@@ -162,10 +138,6 @@ export interface Integracao {
   atualizado_em: string
 }
 
-// ----------------------------------------------------------------------
-// SISTEMA DE MAESTRIA E PROGRESSO
-// ----------------------------------------------------------------------
-
 export interface StatusMaestria {
   nivel: number
   xp_atual: number
@@ -178,7 +150,7 @@ export interface MaestriaCategoria {
   categoria_id: string
   categoria_nome: string
   categoria_cor: string
-  pontuacao: number // 0 a 100
+  pontuacao: number
   estado: 'aprendendo' | 'dominado' | 'esquecendo'
   data_ultimo_estudo: string
 }
