@@ -28,18 +28,27 @@ interface ZenModeProps {
   onClose: () => void
   task?: Tarefa | null
   taskTitle?: string
+  focusDurationMin?: number
 }
 
-const DURACAO_FOCO = 25 * 60
 const PROTOCOLO_RESPIRO = 3 * 60
 
-export function ZenMode({ isOpen, onClose, task = null, taskTitle }: ZenModeProps) {
+export function ZenMode({ isOpen, onClose, task = null, taskTitle, focusDurationMin = 25 }: ZenModeProps) {
   const [mounted, setMounted] = useState(false)
-  const [timeLeft, setTimeLeft] = useState(DURACAO_FOCO)
+  
+  const initialDuration = focusDurationMin * 60
+  const [timeLeft, setTimeLeft] = useState(initialDuration)
   const [isRunning, setIsRunning] = useState(false)
   const [isPlaylistOpen, setIsPlaylistOpen] = useState(false)
   const [audioPreset, setAudioPreset] = useState<SpotifyPreset>('focus')
   const [emergencyLeft, setEmergencyLeft] = useState(0)
+
+  // Atualizar o timeLeft se focusDurationMin mudar enquanto fechado
+  useEffect(() => {
+    if (!isOpen) {
+      setTimeLeft(initialDuration)
+    }
+  }, [isOpen, initialDuration])
 
   const isEmergencyBreathing = emergencyLeft > 0
 
@@ -86,7 +95,7 @@ export function ZenMode({ isOpen, onClose, task = null, taskTitle }: ZenModeProp
       
       const actions: Record<string, () => void> = {
         Space: () => setIsRunning(p => !p),
-        KeyR: () => { setIsRunning(false); setTimeLeft(DURACAO_FOCO); toast.info('Timer reiniciado.') },
+        KeyR: () => { setIsRunning(false); setTimeLeft(initialDuration); toast.info('Timer reiniciado.') },
         KeyM: () => setIsPlaylistOpen(p => !p),
         KeyB: () => activateBreathingProtocol(),
         Escape: () => isPlaylistOpen ? setIsPlaylistOpen(false) : onClose()
@@ -100,7 +109,7 @@ export function ZenMode({ isOpen, onClose, task = null, taskTitle }: ZenModeProp
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen, isPlaylistOpen])
+  }, [isOpen, isPlaylistOpen, initialDuration])
 
   const finalizarSessao = () => {
     setIsRunning(false)
@@ -128,11 +137,11 @@ export function ZenMode({ isOpen, onClose, task = null, taskTitle }: ZenModeProp
 
   if (!isOpen || !mounted || (!task && !taskTitle)) return null
 
-  const title = task?.titulo || taskTitle || 'Sessao de foco'
+  const title = task?.titulo || taskTitle || 'Sessão de foco'
   const cognitiveLoad = task?.carga_mental ?? 3
 
   // Cálculo do progresso para o círculo visual
-  const progressOffset = ((DURACAO_FOCO - timeLeft) / DURACAO_FOCO) * 100
+  const progressOffset = ((initialDuration - timeLeft) / initialDuration) * 100
 
   return createPortal(
     <div className={cn(
@@ -215,7 +224,7 @@ export function ZenMode({ isOpen, onClose, task = null, taskTitle }: ZenModeProp
 
         {/* Controls */}
         <div className="mt-16 flex items-center gap-10">
-          <Button variant="outline" size="icon" onClick={() => { setIsRunning(false); setTimeLeft(DURACAO_FOCO); }} 
+          <Button variant="outline" size="icon" onClick={() => { setIsRunning(false); setTimeLeft(initialDuration); }} 
             className="h-16 w-16 rounded-2xl border-white/10 bg-white/5 hover:bg-white/10 text-white/50 hover:text-white">
             <RotateCcw className="w-6 h-6" />
           </Button>
