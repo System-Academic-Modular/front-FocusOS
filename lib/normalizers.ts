@@ -120,7 +120,7 @@ export function normalizePomodoroSession(input: any): SessaoPomodoro {
     id: input?.id || '',
     usuario_id: input?.usuario_id || input?.user_id || '',
     tarefa_id: input?.tarefa_id ?? input?.task_id ?? null,
-    duracao_minutos: Number(input?.duracao_minutos ?? input?.duration_minutes ?? 0),
+    minutos_duracao: Number(input?.minutos_duracao ?? input?.duracao_minutos ?? input?.duration_minutes ?? 0),
     tipo: normalizePomodoroType(input?.tipo || input?.type),
     concluido_em: input?.concluido_em || input?.completed_at || new Date().toISOString(),
   }

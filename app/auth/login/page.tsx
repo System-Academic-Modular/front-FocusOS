@@ -34,8 +34,8 @@ export default function LoginPage() {
       return
     }
 
-    router.push('/dashboard')
-    router.refresh()
+    // O truque de mestre: Força o navegador a recarregar e enviar os cookies frescos!
+    window.location.href = '/dashboard'
   }
 
   return (

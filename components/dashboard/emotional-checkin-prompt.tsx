@@ -45,17 +45,23 @@ export function EmotionalCheckinPrompt() {
 
     startTransition(async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return toast.error('Conexão Neural perdida.')
+      if (!user) {
+        toast.error('Conexão Neural perdida.')
+        return
+      }
 
       const { error } = await supabase.from('checkins_emocionais').insert({
         usuario_id: user.id, humor: mood, energia: energy, nota: note.trim() || null,
       })
 
-      if (error) return toast.error('Falha ao sincronizar scanner.')
+      if (error) {
+        toast.error('Falha ao sincronizar scanner.')
+        return
+      }
 
       toast.success('Scanner Sincronizado!')
-      router.refresh()
       setIsDismissed(true)
+      router.refresh()
     })
   }
 
@@ -76,7 +82,6 @@ export function EmotionalCheckinPrompt() {
       
       <CardContent className="space-y-6 px-6 pb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Humor */}
           <div className="space-y-3">
             <p className="text-[9px] font-black uppercase tracking-widest text-brand-cyan flex items-center gap-1.5"><Sparkles className="w-3 h-3" /> Estado Emocional</p>
             <div className="flex bg-black/40 rounded-2xl p-1.5 border border-white/5">
@@ -92,7 +97,6 @@ export function EmotionalCheckinPrompt() {
             </div>
           </div>
 
-          {/* Energia */}
           <div className="space-y-3">
             <p className="text-[9px] font-black uppercase tracking-widest text-brand-emerald flex items-center gap-1.5"><Zap className="w-3 h-3" /> Bateria Física</p>
             <div className="flex bg-black/40 rounded-2xl p-1.5 border border-white/5">
@@ -112,7 +116,7 @@ export function EmotionalCheckinPrompt() {
         {(mood || energy) && (
           <div className="animate-in fade-in slide-in-from-top-2 duration-300">
             <Textarea
-              placeholder="[ Terminal ] Adicione notas sobre a calibração... (ex: Arquitetura do SAM concluída)"
+              placeholder="[ Terminal ] Adicione notas sobre a calibração... (ex: Arquitetura concluída)"
               value={note} onChange={(e) => setNote(e.target.value)}
               className="resize-none bg-black/40 border-white/10 h-14 text-xs text-white placeholder:text-muted-foreground/30 placeholder:font-mono rounded-xl focus-visible:ring-brand-violet/30"
             />

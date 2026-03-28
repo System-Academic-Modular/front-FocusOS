@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { KanbanView } from '@/components/dashboard/kanban-view'
 import type { Task, Category, TeamMember } from '@/lib/types'
 import { normalizeCategory, normalizeTask } from '@/lib/normalizers'
-import { DEFAULT_KANBAN_COLUMNS } from '@/lib/constants'
+
 interface KanbanPageProps {
   searchParams: Promise<{
     team?: string
@@ -16,6 +16,7 @@ export default async function KanbanPage(props: KanbanPageProps) {
 
   if (!user) return null
 
+  // 1. Busca as tarefas
   const tasksQuery = supabase
     .from('tarefas')
     .select(`
@@ -32,12 +33,14 @@ export default async function KanbanPage(props: KanbanPageProps) {
     tasksQuery.eq('usuario_id', user.id).is('equipe_id', null)
   }
 
+  // 2. Busca categorias
   const categoriesQuery = supabase
     .from('categorias')
     .select('*')
     .eq('usuario_id', user.id)
     .order('nome')
 
+  // 3. Busca as Colunas do Kanban dinâmicas
   const kanbanColumnsQuery = supabase
     .from('kanban_colunas')
     .select('*')
@@ -52,20 +55,16 @@ export default async function KanbanPage(props: KanbanPageProps) {
 
   const tasks = (tasksRes.data || []).map(normalizeTask) as Task[]
   const categories = (categoriesRes.data || []).map(normalizeCategory) as Category[]
-  const kanbanColumns =
-    (kanbanColumnsRes.data && kanbanColumnsRes.data.length > 0)
-      ? kanbanColumnsRes.data
-      : DEFAULT_KANBAN_COLUMNS.map((column) => ({
-          id: `default-${column.status}`,
-          usuario_id: user.id,
-          status: column.status,
-          titulo: column.titulo,
-          ordem: column.ordem,
-          criado_em: new Date().toISOString(),
-        }))
+  
+  // Tratamento seguro das colunas que vieram do banco
+  const kanbanColumns = (kanbanColumnsRes.data || []).map(col => ({
+      status: col.status,
+      titulo: col.titulo,
+      ordem: col.ordem
+  }))
 
+  // 4. Busca membros da equipe se aplicável
   let teamMembers: TeamMember[] = []
-
   if (teamId) {
     const { data: members } = await supabase
       .from('membros_equipe')
@@ -90,7 +89,7 @@ export default async function KanbanPage(props: KanbanPageProps) {
         <KanbanView
           tasks={tasks}
           categories={categories}
-          kanbanColumns={kanbanColumns}
+          kanbanColumns={kanbanColumns} // Passa as colunas reais do banco!
           selectedTeamId={teamId || null}
           teamMembers={teamMembers}
         />

@@ -44,7 +44,7 @@ export default async function DashboardPage() {
   const [
     perfilRes, tarefasTimelineRes, categoriasRes, checkinHojeRes, totalConcluidasRes, esforcoHojeRes, sessoesStreakRes, maestriaRes,
   ] = await Promise.all([
-    supabase.from('perfis').select('nome_completo').eq('id', user.id).maybeSingle(),
+    supabase.from('perfis').select('nome_completo, email').eq('id', user.id).single(),
     supabase.from('tarefas').select('*, categoria:categorias(*)').eq('usuario_id', user.id).is('tarefa_pai_id', null).neq('status', 'concluida').order('data_vencimento', { ascending: true, nullsFirst: false }),
     supabase.from('categorias').select('*').eq('usuario_id', user.id).order('nome'),
     supabase.from('checkins_emocionais').select('*').eq('usuario_id', user.id).gte('criado_em', inicioHoje.toISOString()).maybeSingle(),
@@ -54,9 +54,32 @@ export default async function DashboardPage() {
     supabase.from('mastery_status').select('*').eq('user_id', user.id).order('score', { ascending: false }),
   ])
 
-  const nomeCompleto = perfilRes.data?.nome_completo || (perfilRes.data as any)?.full_name || ''
-  const primeiroNome = nomeCompleto.split(' ')[0] || 'Explorador'
+  // Tratamento Seguro do Nome:
+  // 1. Tenta o nome da tabela perfis
+  // 2. Se for null, tenta tirar o nome a partir do email do auth
+  // 3. Fallback final para 'Operador'
+  // --- TRATAMENTO DE NOME BLINDADO ---
+  // 1. Tenta tirar da tabela de perfis (melhor caso)
+  let nomeCompleto = perfilRes.data?.nome_completo
+  
+  // 2. Se a tabela perfis estiver vazia, tenta ver se no registo (Signup) gravou no user_metadata
+  if (!nomeCompleto && user.user_metadata?.full_name) {
+    nomeCompleto = user.user_metadata.full_name
+  }
 
+  // 3. O fallback tático para o primeiro nome
+  let primeiroNome = 'Operador'
+  
+  if (nomeCompleto) {
+    // Se achou um nome completo válido, pega a primeira palavra
+    primeiroNome = nomeCompleto.split(' ')[0]
+  } else if (user.email) {
+    // Se não achou nome NENHUM, pega só a parte antes do @ do email (ex: arthur@gmail -> arthur)
+    primeiroNome = user.email.split('@')[0]
+  }
+
+  // Garante que a primeira letra é maiúscula (ex: arthur -> Arthur)
+  const nomeFinal = primeiroNome.charAt(0).toUpperCase() + primeiroNome.slice(1)
   const tarefasTimeline = (tarefasTimelineRes.data || []).map(normalizeTask) as Tarefa[]
   const categorias = (categoriasRes.data || []).map(normalizeCategory) as Categoria[]
   const totalConcluidas = totalConcluidasRes.count || 0
@@ -85,7 +108,7 @@ export default async function DashboardPage() {
             <LayoutDashboard className="w-3 h-3" /> Painel de Controle
           </p>
           <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-white">
-            {saudacao}, <span className="text-transparent bg-clip-text bg-gradient-to-br from-white to-white/40">{primeiroNome}</span>.
+            {saudacao}, <span className="text-transparent bg-clip-text bg-gradient-to-br from-white to-white/40">{nomeFinal}</span>.
           </h1>
           <p className="text-xs uppercase tracking-widest text-muted-foreground mt-3 font-medium">
             {labelData}
